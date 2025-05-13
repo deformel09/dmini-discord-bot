@@ -2,6 +2,10 @@ import discord
 from discord.ext import commands
 import os
 import asyncio
+from dotenv import load_dotenv
+
+load_dotenv()
+TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -21,7 +25,7 @@ async def on_ready():
 
 async def main():
     await load_cogs()
-    await bot.start('')
+    await bot.start(TOKEN)
 
 if __name__ == '__main__':
     asyncio.run(main())
