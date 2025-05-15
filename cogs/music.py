@@ -24,7 +24,17 @@ ytdl_format_options = {
     'retries': 10,
     'force-ipv4': True,
     'prefer_insecure': True,
-    'cachedir': False
+    'cachedir': False,
+    'cookiefile': 'youtube.cookies',
+    'age_limit': 21,
+    'legacy_server_connect': True,
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['android'],
+            'player_skip': ['webpage'],
+            'skip': ['dash', 'hls']
+        }
+    }
 }
 
 ffmpeg_options = {
@@ -85,10 +95,26 @@ class Music(commands.Cog):
                 return
 
         async with ctx.typing():
-            player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
-            ctx.voice_client.play(player, after=lambda e: print(f'Ошибка плеера: {e}') if e else None)
-
-        await ctx.send(f'Сейчас играет: {player.title}')
+            try:
+                # Сначала попробуем получить информацию о видео
+                loop = self.bot.loop or asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+                
+                if data is None:
+                    await ctx.send("Не удалось получить информацию о видео. Возможно, оно недоступно или удалено.")
+                    return
+                
+                # Если всё хорошо, продолжаем воспроизведение
+                player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
+                ctx.voice_client.play(player, after=lambda e: print(f'Ошибка плеера: {e}') if e else None)
+                await ctx.send(f'Сейчас играет: {player.title}')
+                
+            except Exception as e:
+                error_message = f"Произошла ошибка при обработке видео:\n```{str(e)}```"
+                if hasattr(e, 'msg'):
+                    error_message += f"\nДополнительная информация: {e.msg}"
+                await ctx.send(error_message)
+                return
 
     @commands.command()
     async def volume(self, ctx, volume: int):
