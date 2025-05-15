@@ -3,6 +3,13 @@
 # Переход в корень проекта
 cd "$(dirname "$0")/.."
 
+# Проверка .env
+if [ ! -f .env ]; then
+    echo "Error: .env file not found!"
+    echo "Create .env with DISCORD_BOT_TOKEN variable"
+    exit 1
+fi
+
 # Создаем папку logs если её нет
 mkdir -p logs
 

@@ -17,7 +17,14 @@ ytdl_format_options = {
     'default_search': 'auto',
     'source_address': '0.0.0.0',
     'extract_flat': True,
-    'skip_download': True
+    'skip_download': True,
+    'geo_bypass': True,
+    'geo_bypass_country': 'US',
+    'socket_timeout': 15,
+    'retries': 10,
+    'force-ipv4': True,
+    'prefer_insecure': True,
+    'cachedir': False
 }
 
 ffmpeg_options = {
