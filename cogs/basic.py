@@ -5,7 +5,7 @@ class Basic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="помощь", aliases=["команды", "commands"])
+    @commands.command(name="help", aliases=["команды", "commands"])
     async def help_command(self, ctx, command_name=None):
         """Показывает список доступных команд или информацию о конкретной команде"""
         if command_name:
@@ -41,12 +41,12 @@ class Basic(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def привет(self, ctx):
+    async def hi(self, ctx):
         """Команда !привет - бот отвечает приветствием"""
         await ctx.send(f'Привет, {ctx.author.mention}!')
 
     @commands.command()
-    async def инфо(self, ctx):
+    async def info(self, ctx):
         """Команда !инфо - выводит информацию о сервере"""
         server = ctx.guild
         verification_level = str(server.verification_level).capitalize()
