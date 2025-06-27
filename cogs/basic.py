@@ -5,7 +5,7 @@ class Basic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="help", aliases=["команды", "commands"])
+    @commands.command(name="bothelp", aliases=["команды", "commands"])
     async def help_command(self, ctx, command_name=None):
         """Показывает список доступных команд или информацию о конкретной команде"""
         if command_name:
