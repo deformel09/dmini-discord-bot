@@ -1,0 +1,26 @@
+{
+  "name": "discordbot",
+  "version": "0.0.1",
+  "description": "Bot d-mini discord",
+  "author": "deformel <vova02329@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=16.0.0",
+    "yarn": ">=1.22.0"
+  },
+  "scripts": {
+    "start": "bash ./sh/run.sh",
+    "stop": "bash ./sh/stop.sh",
+    "restart": "bash ./sh/restart.sh",
+    "install-deps": "bash -c 'source venv/bin/activate && pip install -r requirements.txt'",
+    "setup": "yarn run env && yarn run install-deps",
+    "env": "cp .env.example .env && echo 'Please edit .env file!'",
+    "logs": "tail -f logs/bot.log",
+    "dev": "source venv/bin/activate && python main.py",
+    "clean": "rm -rf logs/*.pid logs/*.log __pycache__ *.pyc"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "workspaces": []
+}
