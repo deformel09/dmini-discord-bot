@@ -103,7 +103,7 @@ class MusicControlView(discord.ui.View):
                         self.ctx.voice_client.is_playing() and
                         self.track_duration > 0):
                     await self.update_embed()
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
 
@@ -248,10 +248,12 @@ class MusicControlView(discord.ui.View):
             await self.ctx.voice_client.disconnect()
             if self.ctx.guild.id in self.music_cog.queues:
                 self.music_cog.queues[self.ctx.guild.id].clear()
-            await interaction.response.send_message("⏹️ Музыка остановлена, бот отключен", ephemeral=True)
+            if self.message:
+                await self.message.delete()
+                self.message = None
+            await interaction.response.send_message("⏹️ Музыка остановлена, бот отключен")
         else:
-            await interaction.response.send_message("❌ Бот не подключен к каналу", ephemeral=True)
-
+            await interaction.response.send_message("❌ Бот не подключен к каналу")
 
 class VolumeModal(discord.ui.Modal):
     def __init__(self, ctx):
