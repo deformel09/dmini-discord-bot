@@ -366,6 +366,9 @@ class Music(commands.Cog):
 
     @commands.command()
     async def play(self, ctx, *, url):
+
+        await ctx.message.delete()
+
         """Воспроизводит музыку и показывает/обновляет меню управления"""
         if not ctx.voice_client:
             if ctx.author.voice:
