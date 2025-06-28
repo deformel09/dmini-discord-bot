@@ -355,7 +355,9 @@ class Music(commands.Cog):
                 await asyncio.sleep(10)
                 await message.delete()
         except Exception as e:
-            await ctx.send(f"❌ Ошибка воспроизведения: {e}")
+            message = await ctx.send(f"❌ Ошибка воспроизведения: {e}")
+            await asyncio.sleep(10)
+            await message.delete()
 
     def format_time(self, seconds):
         """Форматирует время в MM:SS или HH:MM:SS"""
