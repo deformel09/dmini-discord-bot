@@ -375,28 +375,28 @@ class Music(commands.Cog):
 
     @commands.command()
     async def play(self, ctx, *, url):
-
         await ctx.message.delete()
 
-        """Воспроизводит музыку и показывает/обновляет меню управления"""
         if not ctx.voice_client:
             if ctx.author.voice:
                 await ctx.author.voice.channel.connect()
             else:
                 return await ctx.send("❌ Вы не подключены к голосовому каналу!")
 
+        # Если уже что-то играет — добавляем в очередь
         if ctx.voice_client.is_playing():
             queue = self.get_queue(ctx.guild.id)
             queue.append(url)
-            ab = await ctx.send(f"➕ Добавлено в очередь: `{url}`")
-            await asyncio.sleep(10)
-            await ab.delete()
-            if ctx.guild.id in self.current_views:
-                view = self.current_views[ctx.guild.id]
+            await ctx.send(f"➕ Добавлено в очередь: `{url}`", delete_after=5)
+
+            # Обновляем embed, если он существует
+            view = self.current_views.get(ctx.guild.id)
+            if view and view.message:
                 await view.update_embed()
             return
 
-        if ctx.guild.id not in self.current_views:
+        # Проверка: существует ли уже view или нужно создать
+        if ctx.guild.id not in self.current_views or not self.current_views[ctx.guild.id].message:
             view = MusicControlView(self, ctx)
             self.current_views[ctx.guild.id] = view
 
@@ -406,11 +406,10 @@ class Music(commands.Cog):
                 color=discord.Color.blue()
             )
 
-            message = await ctx.send(embed=embed, view=view)
-            view.message = message
+            view.message = await ctx.send(embed=embed, view=view)
 
+        # Запустить воспроизведение
         await self._play(ctx, url)
-
     # Ваши существующие команды остаются без изменений
     @commands.command()
     async def skip(self, ctx):
