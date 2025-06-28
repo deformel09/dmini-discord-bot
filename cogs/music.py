@@ -382,8 +382,9 @@ class Music(commands.Cog):
         if ctx.voice_client.is_playing():
             queue = self.get_queue(ctx.guild.id)
             queue.append(url)
-            await ctx.send(f"➕ Добавлено в очередь: `{url}`")
-
+            ab = await ctx.send(f"➕ Добавлено в очередь: `{url}`")
+            await asyncio.sleep(10)
+            await ab.delete()
             if ctx.guild.id in self.current_views:
                 view = self.current_views[ctx.guild.id]
                 await view.update_embed()
