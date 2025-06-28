@@ -253,9 +253,11 @@ class MusicControlView(discord.ui.View):
             if self.message:
                 await self.message.delete()
                 self.message = None
-            message = await interaction.response.send_message("⏹️ Музыка остановлена, бот отключен")
+            await interaction.response.defer()  # скрывает индикатор загрузки
+            message = await interaction.followup.send("⏹️ Музыка остановлена, бот отключен")
             await asyncio.sleep(10)
             await message.delete()
+
         else:
             await interaction.response.send_message("❌ Бот не подключен к каналу")
 
