@@ -1,3 +1,5 @@
+from asyncio import sleep
+
 import discord
 from discord.ext import commands
 import yt_dlp as youtube_dl
@@ -349,8 +351,9 @@ class Music(commands.Cog):
 
             if not from_queue:
                 duration_str = self.format_time(duration) if duration > 0 else "не определена"
-                await ctx.send(f"🎵 Начинаю воспроизведение: **{title}** ({duration_str})")
-
+                message = await ctx.send(f"🎵 Начинаю воспроизведение: **{title}** ({duration_str})")
+                await asyncio.sleep(10)
+                await message.delete()
         except Exception as e:
             await ctx.send(f"❌ Ошибка воспроизведения: {e}")
 
