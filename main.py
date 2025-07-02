@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands  # Импорт для слеш-команд
 import os
 from dotenv import load_dotenv
 
@@ -25,6 +26,12 @@ bot = commands.Bot(
 async def on_ready():
     print(f'✅ Бот {bot.user.name} подключился!')
     print(f'ID: {bot.user.id}')
+    # Синхронизация слеш-команд
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ Синхронизировано {len(synced)} команд")
+    except Exception as e:
+        print(f"❌ Ошибка синхронизации: {e}")
 
 async def load_cogs():
     if os.path.exists('./cogs'):
@@ -38,12 +45,10 @@ async def load_cogs():
 
 @bot.event
 async def setup_hook():
-    """Вызывается при инициализации бота"""
     await load_cogs()
 
 if __name__ == '__main__':
     try:
-        # Используем bot.run() вместо asyncio.run()
         bot.run(TOKEN, reconnect=True)
     except KeyboardInterrupt:
         print("🛑 Остановлено пользователем")
