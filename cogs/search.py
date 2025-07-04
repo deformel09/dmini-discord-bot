@@ -44,10 +44,11 @@ def format_duration(seconds):
 
 
 class SearchModal(discord.ui.Modal):
-    def __init__(self, search_cog):
+    def __init__(self, search_cog,bot, original_interaction=None):
         super().__init__(title="🔍 Поиск треков на YouTube")
         self.search_cog = search_cog
-        self.original_message = None  # Добавляем это поле
+        self.bot = bot
+        self.original_interaction = original_interaction
 
     search_input = discord.ui.TextInput(
         label="Название трека",
@@ -59,49 +60,40 @@ class SearchModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
 
+        # Удаляем исходное сообщение с кнопкой поиска
+        if self.original_interaction:
+            try:
+                await self.original_interaction.delete_original_response()
+            except:
+                pass
+
         query = self.search_input.value
         print(f"🔍 Поиск: {query}")
-
         try:
             search_query = f"ytsearch10:{query}"
             ytdl_opts = search_options.copy()
-
             with youtube_dl.YoutubeDL(ytdl_opts) as ytdl:
                 search_results = await interaction.client.loop.run_in_executor(
                     None, lambda: ytdl.extract_info(search_query, download=False)
                 )
-
             if not search_results:
                 await interaction.followup.send("❌ Ошибка при выполнении поиска!")
                 return
-
             entries = search_results.get('entries', [])
             if not entries:
                 await interaction.followup.send("❌ Ничего не найдено!")
                 return
-
             results = [entry for entry in entries if entry is not None][:10]
-
             if not results:
                 await interaction.followup.send("❌ Не удалось получить результаты поиска!")
                 return
-
             print(f"✅ Найдено {len(results)} треков")
-
             embed = self.create_search_embed(query, results, 0)
             view = SearchNavigationView(results, query, self.search_cog)
-
             await interaction.followup.send(embed=embed, view=view)
-
         except Exception as e:
             print(f"❌ Ошибка поиска: {e}")
             await interaction.followup.send(f"❌ Ошибка при поиске: {str(e)}")
-
-        if hasattr(self, 'original_message') and self.original_message:
-            try:
-                await self.original_message.delete()
-            except:
-                pass
 
     def create_search_embed(self, query, results, selected_index):
         embed = discord.Embed(
@@ -290,8 +282,7 @@ class SearchButton(discord.ui.View):
 
     @discord.ui.button(label='🔍 Открыть поиск', style=discord.ButtonStyle.primary)
     async def open_search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = SearchModal(self.bot)
-        modal.original_message = interaction.message  # Сохраняем ссылку на сообщение
+        modal = SearchModal(self.bot, interaction)
         await interaction.response.send_modal(modal)
 
 
