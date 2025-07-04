@@ -31,7 +31,6 @@ def format_duration(seconds):
         return "Неизвестно"
 
     try:
-        # Преобразуем в целое число
         seconds = int(seconds)
         minutes, secs = divmod(seconds, 60)
         hours, mins = divmod(minutes, 60)
@@ -63,10 +62,7 @@ class SearchModal(discord.ui.Modal):
         print(f"🔍 Поиск: {query}")
 
         try:
-            # Создаем поисковый запрос
             search_query = f"ytsearch10:{query}"
-
-            # Настройки для поиска
             ytdl_opts = search_options.copy()
 
             with youtube_dl.YoutubeDL(ytdl_opts) as ytdl:
@@ -74,19 +70,15 @@ class SearchModal(discord.ui.Modal):
                     None, lambda: ytdl.extract_info(search_query, download=False)
                 )
 
-            print(f"📊 Результаты поиска получены")
-
             if not search_results:
                 await interaction.followup.send("❌ Ошибка при выполнении поиска!")
                 return
 
-            # Проверяем есть ли результаты
             entries = search_results.get('entries', [])
             if not entries:
                 await interaction.followup.send("❌ Ничего не найдено!")
                 return
 
-            # Фильтруем результаты (убираем None)
             results = [entry for entry in entries if entry is not None][:10]
 
             if not results:
@@ -95,7 +87,6 @@ class SearchModal(discord.ui.Modal):
 
             print(f"✅ Найдено {len(results)} треков")
 
-            # Создаем embed и view для навигации
             embed = self.create_search_embed(query, results, 0)
             view = SearchNavigationView(results, query, self.search_cog)
 
@@ -117,10 +108,8 @@ class SearchModal(discord.ui.Modal):
             duration = result.get('duration')
             uploader = result.get('uploader', 'Неизвестный канал')
 
-            # Используем безопасное форматирование
             duration_str = format_duration(duration)
 
-            # Выделяем выбранный трек
             if i == selected_index:
                 line = f"**{i + 1}. {title}** \n📺 {uploader} | ⏱️ {duration_str} ◀️"
             else:
@@ -135,8 +124,6 @@ class SearchModal(discord.ui.Modal):
 
 
 class FakeMessage:
-    """Фейковое сообщение для контекста"""
-
     def __init__(self, interaction):
         self.id = interaction.message.id if interaction.message else 0
         self.channel = interaction.channel
@@ -148,8 +135,6 @@ class FakeMessage:
 
 
 class FakeContext:
-    """Полный фейковый контекст для команды play"""
-
     def __init__(self, interaction):
         self.author = interaction.user
         self.guild = interaction.guild
@@ -160,7 +145,6 @@ class FakeContext:
         self.interaction = interaction
 
     async def send(self, content=None, **kwargs):
-        """Отправляет сообщение в канал"""
         return await self.channel.send(content, **kwargs)
 
 
@@ -198,13 +182,23 @@ class SearchNavigationView(discord.ui.View):
         video_url = f"https://www.youtube.com/watch?v={selected_track.get('id', '')}"
         title = selected_track.get('title', 'Неизвестно')
 
+        # Проверяем, находится ли пользователь в голосовом канале
+        if not interaction.user.voice:
+            await interaction.response.send_message("❌ Вы должны находиться в голосовом канале!", ephemeral=True)
+            return
+
         music_cog = interaction.client.get_cog('Music')
         if music_cog:
             try:
-                # Создаем полный фейковый контекст
-                ctx = FakeContext(interaction)
+                # Подключаемся к голосовому каналу, если не подключены
+                if not interaction.guild.voice_client:
+                    voice_channel = interaction.user.voice.channel
+                    await voice_channel.connect()
 
-                # Вызываем команду play
+                # Создаем контекст и воспроизводим
+                ctx = FakeContext(interaction)
+                ctx.voice_client = interaction.guild.voice_client  # Обновляем voice_client
+
                 await music_cog.play(ctx, url=video_url)
                 await interaction.response.send_message(f"▶️ Воспроизводится: **{title}**", ephemeral=True)
 
@@ -256,7 +250,6 @@ class SearchNavigationView(discord.ui.View):
             duration = result.get('duration')
             uploader = result.get('uploader', 'Неизвестный канал')
 
-            # Используем безопасное форматирование
             duration_str = format_duration(duration)
 
             if i == self.selected_index:
