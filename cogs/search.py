@@ -25,6 +25,25 @@ search_options = {
 }
 
 
+def format_duration(seconds):
+    """Безопасное форматирование длительности"""
+    if not seconds or seconds <= 0:
+        return "Неизвестно"
+
+    try:
+        # Преобразуем в целое число
+        seconds = int(seconds)
+        minutes, secs = divmod(seconds, 60)
+        hours, mins = divmod(minutes, 60)
+
+        if hours > 0:
+            return f"{hours}:{mins:02d}:{secs:02d}"
+        else:
+            return f"{minutes}:{secs:02d}"
+    except (ValueError, TypeError):
+        return "Неизвестно"
+
+
 class SearchModal(discord.ui.Modal):
     def __init__(self, search_cog):
         super().__init__(title="🔍 Поиск треков на YouTube")
@@ -41,7 +60,7 @@ class SearchModal(discord.ui.Modal):
         await interaction.response.defer()
 
         query = self.search_input.value
-        print(f"🔍 Поиск: {query}")  # Для отладки
+        print(f"🔍 Поиск: {query}")
 
         try:
             # Создаем поисковый запрос
@@ -55,7 +74,7 @@ class SearchModal(discord.ui.Modal):
                     None, lambda: ytdl.extract_info(search_query, download=False)
                 )
 
-            print(f"📊 Результаты поиска: {search_results}")  # Для отладки
+            print(f"📊 Результаты поиска получены")
 
             if not search_results:
                 await interaction.followup.send("❌ Ошибка при выполнении поиска!")
@@ -74,7 +93,7 @@ class SearchModal(discord.ui.Modal):
                 await interaction.followup.send("❌ Не удалось получить результаты поиска!")
                 return
 
-            print(f"✅ Найдено {len(results)} треков")  # Для отладки
+            print(f"✅ Найдено {len(results)} треков")
 
             # Создаем embed и view для навигации
             embed = self.create_search_embed(query, results, 0)
@@ -83,7 +102,7 @@ class SearchModal(discord.ui.Modal):
             await interaction.followup.send(embed=embed, view=view)
 
         except Exception as e:
-            print(f"❌ Ошибка поиска: {e}")  # Для отладки
+            print(f"❌ Ошибка поиска: {e}")
             await interaction.followup.send(f"❌ Ошибка при поиске: {str(e)}")
 
     def create_search_embed(self, query, results, selected_index):
@@ -95,15 +114,11 @@ class SearchModal(discord.ui.Modal):
         description_lines = []
         for i, result in enumerate(results):
             title = result.get('title', 'Неизвестно')
-            duration = result.get('duration', 0)
+            duration = result.get('duration')
             uploader = result.get('uploader', 'Неизвестный канал')
 
-            # Форматируем длительность
-            if duration and duration > 0:
-                minutes, seconds = divmod(duration, 60)
-                duration_str = f"{minutes}:{seconds:02d}"
-            else:
-                duration_str = "Неизвестно"
+            # Используем безопасное форматирование
+            duration_str = format_duration(duration)
 
             # Выделяем выбранный трек
             if i == selected_index:
@@ -213,14 +228,11 @@ class SearchNavigationView(discord.ui.View):
         description_lines = []
         for i, result in enumerate(self.results):
             title = result.get('title', 'Неизвестно')
-            duration = result.get('duration', 0)
+            duration = result.get('duration')
             uploader = result.get('uploader', 'Неизвестный канал')
 
-            if duration and duration > 0:
-                minutes, seconds = divmod(duration, 60)
-                duration_str = f"{minutes}:{seconds:02d}"
-            else:
-                duration_str = "Неизвестно"
+            # Используем безопасное форматирование
+            duration_str = format_duration(duration)
 
             if i == self.selected_index:
                 line = f"**{i + 1}. {title}** \n📺 {uploader} | ⏱️ {duration_str} ◀️"
