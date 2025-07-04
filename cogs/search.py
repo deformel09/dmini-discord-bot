@@ -1,20 +1,37 @@
 import discord
 from discord.ext import commands
-import youtube_dl
+import yt_dlp as youtube_dl
 
-# Настройки для YouTube-DL (используем те же, что в music.py)
+# Настройки для YouTube-DL
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'extractaudio': True,
+    'audioformat': 'mp3',
+    'outtmpl': '-',
     'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
-    'ignoreerrors': False,
+    'ignoreerrors': True,
     'logtostderr': False,
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
+    'extract_flat': True,
+    'geo_bypass': True,
+    'socket_timeout': 15,
+    'retries': 10,
+    'force-ipv4': True,
+    'prefer_insecure': True,
+    'cachedir': False,
+    'age_limit': 21,
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['android'],
+            'player_skip': ['webpage'],
+            'skip': ['dash', 'hls']
+        }
+    }
 }
 
 
@@ -38,7 +55,6 @@ class SearchModal(discord.ui.Modal):
         try:
             # Выполняем поиск
             search_options = ytdl_format_options.copy()
-            search_options['extract_flat'] = True
             search_options['default_search'] = 'ytsearch10:'
 
             ytdl = youtube_dl.YoutubeDL(search_options)
@@ -50,11 +66,11 @@ class SearchModal(discord.ui.Modal):
                 await interaction.followup.send("❌ Ничего не найдено!")
                 return
 
-            results = search_results['entries'][:10]  # Ограничиваем 10 результатами
+            results = search_results['entries'][:10]
 
             # Создаем embed и view для навигации
             embed = self.create_search_embed(query, results, 0)
-            view = SearchNavigationView(results, query, self.search_cog, interaction)
+            view = SearchNavigationView(results, query, self.search_cog)
 
             await interaction.followup.send(embed=embed, view=view)
 
@@ -64,24 +80,20 @@ class SearchModal(discord.ui.Modal):
     def create_search_embed(self, query, results, selected_index):
         embed = discord.Embed(
             title=f"🔍 Результаты поиска: {query}",
-            description=f"Найдено {len(results)} треков. Используйте кнопки для навигации.",
             color=discord.Color.blue()
         )
 
-        # Показываем список с выделенным треком
         description_lines = []
         for i, result in enumerate(results):
             title = result.get('title', 'Неизвестно')
             duration = result.get('duration', 0)
 
-            # Форматируем длительность
             if duration:
                 minutes, seconds = divmod(duration, 60)
                 duration_str = f"{minutes}:{seconds:02d}"
             else:
                 duration_str = "Неизвестно"
 
-            # Выделяем выбранный трек жирным
             if i == selected_index:
                 line = f"**{i + 1}. {title}** ⏱️ {duration_str} ◀️"
             else:
@@ -96,15 +108,13 @@ class SearchModal(discord.ui.Modal):
 
 
 class SearchNavigationView(discord.ui.View):
-    def __init__(self, results, query, search_cog, interaction):
-        super().__init__(timeout=300)  # 5 минут
+    def __init__(self, results, query, search_cog):
+        super().__init__(timeout=300)
         self.results = results
         self.query = query
         self.search_cog = search_cog
-        self.interaction = interaction
         self.selected_index = 0
 
-        # Если только один результат, отключаем кнопки навигации
         if len(results) <= 1:
             self.up_button.disabled = True
             self.down_button.disabled = True
@@ -131,17 +141,19 @@ class SearchNavigationView(discord.ui.View):
         url = selected_track.get('url', '')
         title = selected_track.get('title', 'Неизвестно')
 
-        # Получаем music cog для воспроизведения
         music_cog = interaction.client.get_cog('Music')
         if music_cog:
             try:
-                # Создаем контекст для команды play
-                ctx = await interaction.client.get_context(interaction.message)
-                ctx.author = interaction.user
-                ctx.guild = interaction.guild
-                ctx.channel = interaction.channel
+                # Создаем фейковый контекст для команды play
+                class FakeContext:
+                    def __init__(self, interaction):
+                        self.author = interaction.user
+                        self.guild = interaction.guild
+                        self.channel = interaction.channel
+                        self.voice_client = interaction.guild.voice_client
+                        self.bot = interaction.client
 
-                # Воспроизводим трек
+                ctx = FakeContext(interaction)
                 await music_cog.play(ctx, url=url)
                 await interaction.response.send_message(f"▶️ Воспроизводится: **{title}**", ephemeral=True)
             except Exception as e:
@@ -155,11 +167,9 @@ class SearchNavigationView(discord.ui.View):
         url = selected_track.get('url', '')
         title = selected_track.get('title', 'Неизвестно')
 
-        # Получаем music cog для добавления в очередь
         music_cog = interaction.client.get_cog('Music')
         if music_cog:
             try:
-                # Добавляем в очередь
                 guild_id = interaction.guild.id
                 if guild_id not in music_cog.queues:
                     music_cog.queues[guild_id] = []
@@ -185,20 +195,17 @@ class SearchNavigationView(discord.ui.View):
             color=discord.Color.blue()
         )
 
-        # Показываем список с выделенным треком
         description_lines = []
         for i, result in enumerate(self.results):
             title = result.get('title', 'Неизвестно')
             duration = result.get('duration', 0)
 
-            # Форматируем длительность
             if duration:
                 minutes, seconds = divmod(duration, 60)
                 duration_str = f"{minutes}:{seconds:02d}"
             else:
                 duration_str = "Неизвестно"
 
-            # Выделяем выбранный трек жирным
             if i == self.selected_index:
                 line = f"**{i + 1}. {title}** ⏱️ {duration_str} ◀️"
             else:
@@ -212,15 +219,26 @@ class SearchNavigationView(discord.ui.View):
         return embed
 
 
+class SearchButton(discord.ui.View):
+    def __init__(self, search_cog):
+        super().__init__(timeout=60)
+        self.search_cog = search_cog
+
+    @discord.ui.button(label='🔍 Открыть поиск', style=discord.ButtonStyle.primary)
+    async def open_search(self, interaction: discord.Interaction, button: discord.ui.Button):
+        modal = SearchModal(self.search_cog)
+        await interaction.response.send_modal(modal)
+
+
 class Search(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(name="search", description="Поиск треков на YouTube")
+    @commands.command(name="search", description="Поиск треков на YouTube")
     async def search(self, ctx):
-        """Открывает модальное окно для поиска треков"""
-        modal = SearchModal(self)
-        await ctx.interaction.response.send_modal(modal)
+        """Открывает кнопку для поиска треков"""
+        view = SearchButton(self)
+        await ctx.send("🔍 Нажмите кнопку для открытия поиска:", view=view)
 
 
 async def setup(bot):
