@@ -134,6 +134,36 @@ class SearchModal(discord.ui.Modal):
         return embed
 
 
+class FakeMessage:
+    """Фейковое сообщение для контекста"""
+
+    def __init__(self, interaction):
+        self.id = interaction.message.id if interaction.message else 0
+        self.channel = interaction.channel
+        self.guild = interaction.guild
+        self.author = interaction.user
+
+    async def delete(self):
+        pass
+
+
+class FakeContext:
+    """Полный фейковый контекст для команды play"""
+
+    def __init__(self, interaction):
+        self.author = interaction.user
+        self.guild = interaction.guild
+        self.channel = interaction.channel
+        self.voice_client = interaction.guild.voice_client
+        self.bot = interaction.client
+        self.message = FakeMessage(interaction)
+        self.interaction = interaction
+
+    async def send(self, content=None, **kwargs):
+        """Отправляет сообщение в канал"""
+        return await self.channel.send(content, **kwargs)
+
+
 class SearchNavigationView(discord.ui.View):
     def __init__(self, results, query, search_cog):
         super().__init__(timeout=300)
@@ -165,26 +195,21 @@ class SearchNavigationView(discord.ui.View):
     @discord.ui.button(label='▶️ Воспроизвести', style=discord.ButtonStyle.success)
     async def play_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         selected_track = self.results[self.selected_index]
-        # Получаем URL для воспроизведения
         video_url = f"https://www.youtube.com/watch?v={selected_track.get('id', '')}"
         title = selected_track.get('title', 'Неизвестно')
 
         music_cog = interaction.client.get_cog('Music')
         if music_cog:
             try:
-                # Создаем фейковый контекст для команды play
-                class FakeContext:
-                    def __init__(self, interaction):
-                        self.author = interaction.user
-                        self.guild = interaction.guild
-                        self.channel = interaction.channel
-                        self.voice_client = interaction.guild.voice_client
-                        self.bot = interaction.client
-
+                # Создаем полный фейковый контекст
                 ctx = FakeContext(interaction)
+
+                # Вызываем команду play
                 await music_cog.play(ctx, url=video_url)
                 await interaction.response.send_message(f"▶️ Воспроизводится: **{title}**", ephemeral=True)
+
             except Exception as e:
+                print(f"❌ Ошибка воспроизведения: {e}")
                 await interaction.response.send_message(f"❌ Ошибка воспроизведения: {str(e)}", ephemeral=True)
         else:
             await interaction.response.send_message("❌ Музыкальный модуль не найден!", ephemeral=True)
@@ -235,7 +260,7 @@ class SearchNavigationView(discord.ui.View):
             duration_str = format_duration(duration)
 
             if i == self.selected_index:
-                line = f"**{i + 1}. {title}** \n📺 {uploader} | ⏱️ {duration_str} ◀️"
+                line = f"**{i + 1}. {title}** \n📺 {uploader} | ⏱️ {duration_str}"
             else:
                 line = f"{i + 1}. {title} \n📺 {uploader} | ⏱️ {duration_str}"
 
