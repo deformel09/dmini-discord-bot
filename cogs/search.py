@@ -1,35 +1,25 @@
 import discord
 from discord.ext import commands
 import yt_dlp as youtube_dl
+import asyncio
 
-# Настройки для YouTube-DL
-ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'extractaudio': True,
-    'audioformat': 'mp3',
-    'outtmpl': '-',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': True,
-    'logtostderr': False,
+# Настройки для поиска на YouTube
+search_options = {
     'quiet': True,
     'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0',
+    'extractaudio': False,
+    'format': 'best',
+    'noplaylist': True,
     'extract_flat': True,
+    'force_json': True,
     'geo_bypass': True,
     'socket_timeout': 15,
-    'retries': 10,
-    'force-ipv4': True,
-    'prefer_insecure': True,
-    'cachedir': False,
-    'age_limit': 21,
+    'retries': 3,
+    'ignoreerrors': True,
     'extractor_args': {
         'youtube': {
             'player_client': ['android'],
             'player_skip': ['webpage'],
-            'skip': ['dash', 'hls']
         }
     }
 }
@@ -51,22 +41,40 @@ class SearchModal(discord.ui.Modal):
         await interaction.response.defer()
 
         query = self.search_input.value
+        print(f"🔍 Поиск: {query}")  # Для отладки
 
         try:
-            # Выполняем поиск
-            search_options = ytdl_format_options.copy()
-            search_options['default_search'] = 'ytsearch10:'
+            # Создаем поисковый запрос
+            search_query = f"ytsearch10:{query}"
 
-            ytdl = youtube_dl.YoutubeDL(search_options)
-            search_results = await interaction.client.loop.run_in_executor(
-                None, lambda: ytdl.extract_info(query, download=False)
-            )
+            # Настройки для поиска
+            ytdl_opts = search_options.copy()
 
-            if not search_results or 'entries' not in search_results:
+            with youtube_dl.YoutubeDL(ytdl_opts) as ytdl:
+                search_results = await interaction.client.loop.run_in_executor(
+                    None, lambda: ytdl.extract_info(search_query, download=False)
+                )
+
+            print(f"📊 Результаты поиска: {search_results}")  # Для отладки
+
+            if not search_results:
+                await interaction.followup.send("❌ Ошибка при выполнении поиска!")
+                return
+
+            # Проверяем есть ли результаты
+            entries = search_results.get('entries', [])
+            if not entries:
                 await interaction.followup.send("❌ Ничего не найдено!")
                 return
 
-            results = search_results['entries'][:10]
+            # Фильтруем результаты (убираем None)
+            results = [entry for entry in entries if entry is not None][:10]
+
+            if not results:
+                await interaction.followup.send("❌ Не удалось получить результаты поиска!")
+                return
+
+            print(f"✅ Найдено {len(results)} треков")  # Для отладки
 
             # Создаем embed и view для навигации
             embed = self.create_search_embed(query, results, 0)
@@ -75,6 +83,7 @@ class SearchModal(discord.ui.Modal):
             await interaction.followup.send(embed=embed, view=view)
 
         except Exception as e:
+            print(f"❌ Ошибка поиска: {e}")  # Для отладки
             await interaction.followup.send(f"❌ Ошибка при поиске: {str(e)}")
 
     def create_search_embed(self, query, results, selected_index):
@@ -87,17 +96,20 @@ class SearchModal(discord.ui.Modal):
         for i, result in enumerate(results):
             title = result.get('title', 'Неизвестно')
             duration = result.get('duration', 0)
+            uploader = result.get('uploader', 'Неизвестный канал')
 
-            if duration:
+            # Форматируем длительность
+            if duration and duration > 0:
                 minutes, seconds = divmod(duration, 60)
                 duration_str = f"{minutes}:{seconds:02d}"
             else:
                 duration_str = "Неизвестно"
 
+            # Выделяем выбранный трек
             if i == selected_index:
-                line = f"**{i + 1}. {title}** ⏱️ {duration_str} ◀️"
+                line = f"**{i + 1}. {title}** \n📺 {uploader} | ⏱️ {duration_str} ◀️"
             else:
-                line = f"{i + 1}. {title} ⏱️ {duration_str}"
+                line = f"{i + 1}. {title} \n📺 {uploader} | ⏱️ {duration_str}"
 
             description_lines.append(line)
 
@@ -138,7 +150,8 @@ class SearchNavigationView(discord.ui.View):
     @discord.ui.button(label='▶️ Воспроизвести', style=discord.ButtonStyle.success)
     async def play_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         selected_track = self.results[self.selected_index]
-        url = selected_track.get('url', '')
+        # Получаем URL для воспроизведения
+        video_url = f"https://www.youtube.com/watch?v={selected_track.get('id', '')}"
         title = selected_track.get('title', 'Неизвестно')
 
         music_cog = interaction.client.get_cog('Music')
@@ -154,7 +167,7 @@ class SearchNavigationView(discord.ui.View):
                         self.bot = interaction.client
 
                 ctx = FakeContext(interaction)
-                await music_cog.play(ctx, url=url)
+                await music_cog.play(ctx, url=video_url)
                 await interaction.response.send_message(f"▶️ Воспроизводится: **{title}**", ephemeral=True)
             except Exception as e:
                 await interaction.response.send_message(f"❌ Ошибка воспроизведения: {str(e)}", ephemeral=True)
@@ -164,16 +177,18 @@ class SearchNavigationView(discord.ui.View):
     @discord.ui.button(label='➕ В очередь', style=discord.ButtonStyle.primary)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         selected_track = self.results[self.selected_index]
-        url = selected_track.get('url', '')
+        video_url = f"https://www.youtube.com/watch?v={selected_track.get('id', '')}"
         title = selected_track.get('title', 'Неизвестно')
 
         music_cog = interaction.client.get_cog('Music')
         if music_cog:
             try:
                 guild_id = interaction.guild.id
+                if not hasattr(music_cog, 'queues'):
+                    music_cog.queues = {}
                 if guild_id not in music_cog.queues:
                     music_cog.queues[guild_id] = []
-                music_cog.queues[guild_id].append(url)
+                music_cog.queues[guild_id].append(video_url)
 
                 await interaction.response.send_message(f"➕ Добавлено в очередь: **{title}**", ephemeral=True)
             except Exception as e:
@@ -199,17 +214,18 @@ class SearchNavigationView(discord.ui.View):
         for i, result in enumerate(self.results):
             title = result.get('title', 'Неизвестно')
             duration = result.get('duration', 0)
+            uploader = result.get('uploader', 'Неизвестный канал')
 
-            if duration:
+            if duration and duration > 0:
                 minutes, seconds = divmod(duration, 60)
                 duration_str = f"{minutes}:{seconds:02d}"
             else:
                 duration_str = "Неизвестно"
 
             if i == self.selected_index:
-                line = f"**{i + 1}. {title}** ⏱️ {duration_str} ◀️"
+                line = f"**{i + 1}. {title}** \n📺 {uploader} | ⏱️ {duration_str} ◀️"
             else:
-                line = f"{i + 1}. {title} ⏱️ {duration_str}"
+                line = f"{i + 1}. {title} \n📺 {uploader} | ⏱️ {duration_str}"
 
             description_lines.append(line)
 
