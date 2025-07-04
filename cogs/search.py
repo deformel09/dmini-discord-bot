@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 import yt_dlp as youtube_dl
 import asyncio
-import music
 
 # Настройки для поиска на YouTube
 search_options = {
@@ -45,10 +44,9 @@ def format_duration(seconds):
 
 
 class SearchModal(discord.ui.Modal):
-    def __init__(self, search_cog, music_cog):
+    def __init__(self, search_cog):
         super().__init__(title="🔍 Поиск треков на YouTube")
         self.search_cog = search_cog
-        self.music_cog = music_cog  # Сохраняем ссылку на music_cog
 
     search_input = discord.ui.TextInput(
         label="Название трека",
@@ -288,6 +286,10 @@ class Search(commands.Cog):
         view = SearchButton(self)
         await ctx.send("🔍 Нажмите кнопку для открытия поиска:", view=view)
 
+async def open_search_modal(interaction, music_cog):
+    """Функция для открытия модального окна поиска"""
+    modal = SearchModal(music_cog)
+    await interaction.response.send_modal(modal)
 
 async def setup(bot):
     await bot.add_cog(Search(bot))

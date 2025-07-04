@@ -5,7 +5,7 @@ from discord.ext import commands
 import yt_dlp as youtube_dl
 import asyncio
 import time
-from .search import SearchModal
+from .search import open_search_modal
 # Ваши существующие настройки ytdl остаются без изменений
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -54,9 +54,8 @@ class MusicControlView(discord.ui.View):
 
     @discord.ui.button(label="🔍 Поиск", style=discord.ButtonStyle.secondary, row=1)
     async def search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Открывает модальное окно поиска из search.py"""
-        modal = SearchModal(self.music_cog)
-        await interaction.response.send_modal(modal)
+        """Открывает модальное окно поиска"""
+        await open_search_modal(interaction, self.music_cog)
 
     def create_progress_bar(self, current_seconds, total_seconds, length=20):
         """Создает текстовый прогресс-бар"""
