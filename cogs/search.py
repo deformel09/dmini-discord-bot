@@ -54,7 +54,7 @@ class SearchModal(discord.ui.Modal):
         min_length=1,
         max_length=100
     )
-
+    # мне покайфу
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
 
