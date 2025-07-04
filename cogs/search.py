@@ -234,6 +234,17 @@ class SearchNavigationView(discord.ui.View):
     async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.edit_message(content="🔍 Поиск закрыт", embed=None, view=None)
 
+        # Создаем задачу для удаления через 5 секунд
+        async def delete_after_delay():
+            await asyncio.sleep(5)
+            try:
+                await interaction.delete_original_response()
+            except:
+                pass
+
+        # Запускаем задачу в фоне
+        asyncio.create_task(delete_after_delay())
+
     async def update_embed(self, interaction):
         embed = self.create_search_embed()
         await interaction.response.edit_message(embed=embed, view=self)
@@ -271,8 +282,15 @@ class SearchButton(discord.ui.View):
         self.search_cog = search_cog
 
     @discord.ui.button(label='🔍 Открыть поиск', style=discord.ButtonStyle.primary)
-    async def open_search(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = SearchModal(self.search_cog)
+    async def open_search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Удаляем сообщение с кнопкой
+        try:
+            await interaction.message.delete()
+        except:
+            pass
+
+        # Показываем модальное окно поиска
+        modal = SearchModal(self.bot)
         await interaction.response.send_modal(modal)
 
 
@@ -283,11 +301,21 @@ class Search(commands.Cog):
     @commands.command(name="search", description="Поиск треков на YouTube")
     async def search(self, ctx):
         """Открывает кнопку для поиска треков"""
+        # Удаляем сообщение пользователя с командой
+        try:
+            await ctx.message.delete()
+        except:
+            pass  # Игнорируем ошибки если нет прав на удаление
+
         view = SearchButton(self)
         await ctx.send("🔍 Нажмите кнопку для открытия поиска:", view=view)
-
 async def open_search_modal(interaction, music_cog):
     """Функция для открытия модального окна поиска"""
+    # Удаляем сообщение с кнопкой
+    try:
+        await interaction.message.delete()
+    except:
+        pass
     modal = SearchModal(music_cog)
     await interaction.response.send_modal(modal)
 
