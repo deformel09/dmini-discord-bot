@@ -283,15 +283,15 @@ class SearchButton(discord.ui.View):
 
     @discord.ui.button(label='🔍 Открыть поиск', style=discord.ButtonStyle.primary)
     async def open_search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Удаляем сообщение с кнопкой
+        # Сначала отправляем модальное окно
+        modal = SearchModal(self.bot)
+        await interaction.response.send_modal(modal)
+
+        # Затем удаляем сообщение с кнопкой
         try:
             await interaction.message.delete()
         except:
             pass
-
-        # Показываем модальное окно поиска
-        modal = SearchModal(self.bot)
-        await interaction.response.send_modal(modal)
 
 
 class Search(commands.Cog):
