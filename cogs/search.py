@@ -47,6 +47,7 @@ class SearchModal(discord.ui.Modal):
     def __init__(self, search_cog):
         super().__init__(title="🔍 Поиск треков на YouTube")
         self.search_cog = search_cog
+        self.original_message = None  # Добавляем это поле
 
     search_input = discord.ui.TextInput(
         label="Название трека",
@@ -95,6 +96,12 @@ class SearchModal(discord.ui.Modal):
         except Exception as e:
             print(f"❌ Ошибка поиска: {e}")
             await interaction.followup.send(f"❌ Ошибка при поиске: {str(e)}")
+
+        if hasattr(self, 'original_message') and self.original_message:
+            try:
+                await self.original_message.delete()
+            except:
+                pass
 
     def create_search_embed(self, query, results, selected_index):
         embed = discord.Embed(
@@ -283,15 +290,9 @@ class SearchButton(discord.ui.View):
 
     @discord.ui.button(label='🔍 Открыть поиск', style=discord.ButtonStyle.primary)
     async def open_search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Сначала отправляем модальное окно
         modal = SearchModal(self.bot)
+        modal.original_message = interaction.message  # Сохраняем ссылку на сообщение
         await interaction.response.send_modal(modal)
-
-        # Затем удаляем сообщение с кнопкой
-        try:
-            await interaction.message.delete()
-        except:
-            pass
 
 
 class Search(commands.Cog):
